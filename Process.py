@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.special
-from joblib import Parallel, delayed
-import multiprocessing
+
 
 def Analytic_Infinitsite(mutation,sampleSize):
     print(sampleSize)
@@ -16,17 +15,32 @@ def Analytic_Infinitsite(mutation,sampleSize):
                     Prob[n-2, j] += Prob[n-3, j-l]*((mutation/(n-1+mutation))**l*((n-1)/(n-1+mutation)))
     return Prob
 
-def CoalescentEventTime(tau,taub,timeTensor,n,N,NPrim,vecSize):
-    tTot = np.sum(timeTensor,axis=0)
+def CoalescentEventTime(tau,taub,timeTensor,n,N,NPrim,vecSize,j):
+
+    logicArray1 = np.zeros(vecSize, dtype=np.int32)*tau
+
+    tTot = np.sum(timeTensor[0,:,:],axis=0)
     mean = 2*N/(n*(n-1))
-    timeToNextCoalecentEvent = np.random.exponential(scale=mean, size=vecSize)
-    newTotalTime = timeToNextCoalecentEvent+tTot
+
+
+    timeTensor[0,j,:] = np.random.exponential(scale=mean, size=vecSize)
+    newTotalTime = timeTensor[0,j,:]+tTot
     logicArrayTau = np.logical_and(newTotalTime > tau, newTotalTime < tau+taub)
     sumArrayTau = np.sum(logicArrayTau)
+    logicArraySetTau = np.logical_and(tTot < tau, newTotalTime > tau)
+    logicArraySetTau = np.logical_and(logicArraySetTau, newTotalTime < tau+taub)
+    logicArraySetTauB = np.logical_and(tTot < tau+taub, newTotalTime > tau + taub)
+
+
     bottleneckMean = 2*NPrim/(n*(n-1))
     bottleneckTimeToNextCoalecentEvent = np.random.exponential(scale=bottleneckMean, size=sumArrayTau)
-    timeToNextCoalecentEvent[logicArrayTau] = bottleneckTimeToNextCoalecentEvent
-    return timeToNextCoalecentEvent
+
+    timeTensor[0,j,logicArraySetTau] += tau
+    timeTensor[0,j,logicArraySetTauB] += (tau + taub)
+    timeTensor[0,j,logicArrayTau] += bottleneckTimeToNextCoalecentEvent
+    timeTensor[1,j,np.logical_not(logicArrayTau)] = timeTensor[0,j,np.logical_not(logicArrayTau)]
+    timeTensor[1, j, logicArrayTau] = bottleneckTimeToNextCoalecentEvent
+    return timeTensor
 
 def CoalescentMutationsEvents(scaledMutationProb, n, timeToNextCoalecentEvent, treas,mutationTensor, vecSize,sampleSize,populationSize):
     t = sampleSize-n
@@ -104,7 +118,7 @@ def Coalescent_InfinitSite(mutation = 10,sampleSize = 50, populationSize = 10000
     NPrim = populationSize*populationScale
     taub = NPrim * 3
     n = sampleSize
-    timeTensor = np.zeros([sampleSize,vecSize], dtype=np.float32)
+    timeTensor = np.zeros([2,sampleSize,vecSize], dtype=np.float32)
     mutationTensor = np.zeros([sampleSize,sampleSize,4,vecSize], dtype=np.float32)
     treas = np.zeros([sampleSize, vecSize], dtype=np.int8)
     treeStart = np.arange(sampleSize,dtype=np.int8)
@@ -113,11 +127,13 @@ def Coalescent_InfinitSite(mutation = 10,sampleSize = 50, populationSize = 10000
         treas[:, i] = treeStart
     mutationTensor[:, 0, 1, :] = treas
     for j in range(sampleSize-1):
-        timeToNextCoalecentEvent = CoalescentEventTime(tau, taub, timeTensor, n, N, NPrim, vecSize)
-        timeTensor[j,:] = timeToNextCoalecentEvent
+        timeTensor = CoalescentEventTime(tau, taub, timeTensor, n, N, NPrim, vecSize,j)
+        timeToNextCoalecentEvent = timeTensor[0,j,:]
         mutationTensor,treas = CoalescentMutationsEvents(mutation, n, timeToNextCoalecentEvent, treas,mutationTensor, vecSize, sampleSize,populationSize)
         n -= 1
-    estimatorReturnVec = PairwiseCount(mutationTensor, sampleSize, vecSize)
-    timeReturnTensor = timeTensor
-    return estimatorReturnVec, timeReturnTensor
-Coalescent_InfinitSite(10,50,10000000,1,100000,1000)
+    estimatorReturnVec = np.zeros([2,5])
+    estimatorReturnVec[:,:4] = PairwiseCount(mutationTensor, sampleSize, vecSize)
+    estimatorReturnVec[:,4] = np.sum( timeTensor) / vecSize
+    return estimatorReturnVec
+Coalescent_InfinitSite(mutation=10, sampleSize=50, populationSize=10000000, populationScale=0.01, tau=200000,
+                           vecSize=10000)
