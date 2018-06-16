@@ -10,14 +10,14 @@ def main():
     populationSize = 10000000
     populationScaling = 0.01
     tau = np.arange(populationSize*0.02,populationSize*10.02,populationSize*0.02, dtype=np.float32)
-    recursionVec = 20000
+    recursionVec = 10000
     lengthTau = len(tau)
     #estimatorReturnVec = np.zeros([2,4,lengthTau])
     #timeReturnTensor = np.zeros([2,4,lengthTau])
 
     num_cores = multiprocessing.cpu_count()
     estimatorReturnVec = Parallel(n_jobs=num_cores)(delayed(ps.Coalescent_InfinitSite)
-                                            (mutation = scaledMutationRate,
+                                            (scaledMutation = scaledMutationRate,
                                              sampleSize = sampleSize,
                                              populationSize = populationSize,
                                              populationScale = populationScaling,
