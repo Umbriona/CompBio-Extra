@@ -32,8 +32,8 @@ def CoalescentEventTime(tau,taub,timeAndPopulationTensor,n,N,NPrim,vecSize,j):
     bottleneckMean = 2*NPrim/(n*(n-1))
     bottleneckTimeToNextCoalecentEvent = np.random.exponential(scale=bottleneckMean, size=sumArrayTau)
 
-    timeAndPopulationTensor[0,j,logicArraySetTau] = abs(tTot[logicArraySetTau]-tau)
-    timeAndPopulationTensor[0,j,logicArraySetTauB] = abs(tTot[logicArraySetTauB] - (tau + taub))
+    timeAndPopulationTensor[0,j,logicArraySetTau] = abs(tTot[logicArraySetTau]-tau) #Changed line
+    timeAndPopulationTensor[0,j,logicArraySetTauB] = abs(tTot[logicArraySetTauB] - (tau + taub)) #Changed line
     timeAndPopulationTensor[0,j,logicArrayTau] += bottleneckTimeToNextCoalecentEvent
     timeAndPopulationTensor[1,j,np.logical_not(logicArrayTau)] = timeAndPopulationTensor[0,j,np.logical_not(logicArrayTau)]
     timeAndPopulationTensor[1, j, logicArrayTau] = bottleneckTimeToNextCoalecentEvent
